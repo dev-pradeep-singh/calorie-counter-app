@@ -55,11 +55,20 @@ The FastAPI backend lives in `backend/` (Vercel entry point: `api/index.py`).
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+cp .env.example .env   # then fill in SUPABASE_URL, SUPABASE_ANON_KEY, ANTHROPIC_API_KEY
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Check it: `curl localhost:8000/api/health` → `{"status":"ok"}`
+Check it: `curl localhost:8000/api/health` → `{"status":"ok"}`. API docs: http://localhost:8000/api/v1/docs
+
+Every `/api/v1/*` route needs `Authorization: Bearer <Supabase access token>`. The backend verifies the token and calls Supabase with that same token, so row-level security still applies.
+
+Run the tests (Supabase and Anthropic are mocked):
+
+```bash
+pytest backend/tests
+```
 
 ---
 
