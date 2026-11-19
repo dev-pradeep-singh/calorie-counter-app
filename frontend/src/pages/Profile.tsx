@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { SignOut, Sparkle, Target } from '@phosphor-icons/react'
 import { Screen } from '../components/Screen'
-import { GOAL_OPTIONS, SEX_OPTIONS, ToggleGroup } from '../components/ToggleGroup'
+import { BackHeader } from '../components/BackHeader'
+import { Field, NumberField } from '../components/Field'
+import { GOAL_OPTIONS, SEX_OPTIONS, Segmented } from '../components/Segmented'
+import { Recommendation } from '../components/Recommendation'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../auth/AuthProvider'
 import { useProfile } from '../auth/useProfile'
@@ -9,7 +13,7 @@ import { useSaveProfile } from '../hooks/data'
 import type { Profile as ProfileT } from '../lib/api'
 import {
   calcCalorieGoal, calcIdealWeightRange, calcMacroGoals, effectiveGoal, floatOrNull, intOrNull,
-  type GoalType, type Macros, type Sex,
+  type GoalType, type Sex,
 } from '../lib/nutrition'
 
 const str = (v: number | string | null | undefined) => (v === null || v === undefined || v === 0 ? '' : String(v))
@@ -17,11 +21,8 @@ const str = (v: number | string | null | undefined) => (v === null || v === unde
 export default function Profile() {
   const { data: profile } = useProfile()
   if (!profile) return null
-  // Keyed so the form resets if the stored profile is replaced (e.g. after saving).
   return <ProfileForm key={profile.id} profile={profile} />
 }
-
-type Rec = { calories: number; target: number | null; macros: Macros; goal: GoalType }
 
 function ProfileForm({ profile }: { profile: ProfileT }) {
   const navigate = useNavigate()
@@ -42,28 +43,23 @@ function ProfileForm({ profile }: { profile: ProfileT }) {
   const [gf, setGf] = useState(str(profile.goal_fat))
   const [gfi, setGfi] = useState(str(profile.goal_fiber))
   const [showRec, setShowRec] = useState(false)
+  const [confirmOut, setConfirmOut] = useState(false)
 
-  // As before, the recommendation uses the saved age/height/weight/sex and the target typed here.
-  const rec: Rec | null = (() => {
-    const { age: a, height_cm: h, weight_kg: w } = profile
+  // The recommendation now follows what's typed here (age, height, weight, sex, target).
+  const a = intOrNull(age), h = intOrNull(height), w = floatOrNull(weight)
+  const rec = (() => {
     if (!a || !h || !w) return null
-    const s: Sex = profile.sex === 'female' ? 'female' : 'male'
-    const targetWt = floatOrNull(target) ?? calcIdealWeightRange(h)?.ideal ?? null
+    const range = calcIdealWeightRange(h)
+    const targetWt = floatOrNull(target) ?? range?.ideal ?? null
     const goal = effectiveGoal(w, targetWt)
-    const cal = calcCalorieGoal(w, h, a, s, goal)
-    return { calories: cal, target: targetWt, macros: calcMacroGoals(w, cal, s, goal), goal }
+    const cal = calcCalorieGoal(w, h, a, sex, goal)
+    return { calories: cal, target: targetWt, range, macros: calcMacroGoals(w, cal, sex, goal), goal }
   })()
 
-  // While the card is open, the goal toggle follows the recommendation (old behaviour).
   const [lastGoal, setLastGoal] = useState<GoalType | null>(null)
   if (showRec && rec && rec.goal !== lastGoal) {
     setLastGoal(rec.goal)
     setGoalType(rec.goal)
-  }
-
-  const openRec = () => {
-    if (!rec) return toast('⚠️ Fill in your age, height and weight first')
-    setShowRec(true)
   }
 
   const applyRec = () => {
@@ -74,120 +70,97 @@ function ProfileForm({ profile }: { profile: ProfileT }) {
     setGc(String(rec.macros.carbs))
     setGf(String(rec.macros.fat))
     setGfi(String(rec.macros.fiber))
+    toast('Recommendation applied — save to keep it')
   }
 
-  const submit = () => {
+  const submit = () =>
     save.mutate(
       {
         name: name.trim() || 'Friend',
         goal_calories: intOrNull(calories) || 2000,
-        age: intOrNull(age),
-        height_cm: intOrNull(height),
-        weight_kg: floatOrNull(weight),
+        age: a, height_cm: h, weight_kg: w,
         target_weight_kg: floatOrNull(target),
-        sex,
-        goal_type: goalType,
-        goal_protein: intOrNull(gp),
-        goal_carbs: intOrNull(gc),
-        goal_fat: intOrNull(gf),
-        goal_fiber: intOrNull(gfi),
+        sex, goal_type: goalType,
+        goal_protein: intOrNull(gp), goal_carbs: intOrNull(gc), goal_fat: intOrNull(gf), goal_fiber: intOrNull(gfi),
       },
       {
-        onSuccess: () => {
-          toast('✅ Profile saved!')
-          navigate('/')
-        },
-        onError: (e) => toast(`❌ Failed to save: ${e.message}`),
+        onSuccess: () => { toast('Profile saved'); navigate('/') },
+        onError: (e) => toast(`Couldn't save: ${e.message}`, { kind: 'error' }),
       },
     )
-  }
 
-  const displayName = profile.name || '—'
-  const recCell = { background: 'var(--surface2)', borderRadius: 'var(--radius-sm)', padding: 10 }
-  const macroCell = { background: 'var(--surface2)', borderRadius: 'var(--radius-sm)', padding: 8, textAlign: 'center' as const }
+  const dot = (k: string) => <span className="macro-label"><i style={{ background: `var(--${k})` }} aria-hidden />{k === 'fiber' ? 'Fibre' : k[0].toUpperCase() + k.slice(1)}</span>
 
   return (
-    <Screen id="screen-profile">
-      <div className="profile-header">
-        <button className="back-btn" onClick={() => navigate('/')} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>←</button>
-        <h2>My Profile</h2>
+    <Screen id="screen-profile" label="Profile and goals">
+      <BackHeader title="Profile & goals" />
+
+      <section className="card identity" aria-label="Account">
+        <div className="avatar" aria-hidden>{(profile.name || 'U')[0].toUpperCase()}</div>
+        <div style={{ minWidth: 0 }}>
+          <h2>{profile.name || 'Your profile'}</h2>
+          <p>{session?.user.email}</p>
+        </div>
+      </section>
+
+      <h2 className="group-title">About you</h2>
+      <section className="card form-card">
+        <Field label="Name" autoComplete="given-name" placeholder="Your name" value={name} onChange={setName} />
+        <div className="field"><span className="field-label">Sex</span><Segmented label="Sex" options={SEX_OPTIONS} value={sex} onChange={setSex} /></div>
+        <div className="field-row">
+          <NumberField label="Age" placeholder="25" value={age} onChange={setAge} suffix="yrs" />
+          <NumberField label="Height" placeholder="170" value={height} onChange={setHeight} suffix="cm" />
+        </div>
+        <div className="field-row">
+          <NumberField label="Weight" decimal placeholder="70" value={weight} onChange={setWeight} suffix="kg" />
+          <NumberField label="Target weight" decimal placeholder="65" value={target} onChange={setTarget} suffix="kg" />
+        </div>
+      </section>
+
+      <h2 className="group-title">Daily goal</h2>
+      <section className="card form-card">
+        <div className="field"><span className="field-label">Goal</span><Segmented label="Goal" options={GOAL_OPTIONS} value={goalType} onChange={setGoalType} /></div>
+        <NumberField label="Calories" placeholder="2000" value={calories} onChange={setCalories} suffix="kcal" icon={<Target size={20} />} />
+      </section>
+
+      <h2 className="group-title">Macro goals</h2>
+      <section className="card form-card">
+        <div className="field-row">
+          <NumberField label={dot('protein')} placeholder="—" min={0} value={gp} onChange={setGp} suffix="g" />
+          <NumberField label={dot('carbs')} placeholder="—" min={0} value={gc} onChange={setGc} suffix="g" />
+        </div>
+        <div className="field-row">
+          <NumberField label={dot('fat')} placeholder="—" min={0} value={gf} onChange={setGf} suffix="g" />
+          <NumberField label={dot('fiber')} placeholder="—" min={0} value={gfi} onChange={setGfi} suffix="g" />
+        </div>
+        <p className="field-hint">Leave empty to use an estimate based on your calorie goal.</p>
+      </section>
+
+      {showRec && rec ? (
+        <Recommendation calories={rec.calories} target={rec.target} range={rec.range} macros={rec.macros} onApply={applyRec} />
+      ) : (
+        <button type="button" className="btn btn-secondary block"
+          onClick={() => (rec ? setShowRec(true) : toast('Add your age, height and weight first', { kind: 'info' }))}>
+          <Sparkle size={20} weight="fill" color="var(--brand)" aria-hidden /> Get a recommendation
+        </button>
+      )}
+
+      <div className="sticky-cta">
+        <button className="btn btn-primary block" onClick={submit} disabled={save.isPending} aria-busy={save.isPending}>
+          {save.isPending && <span className="spinner" aria-hidden />} Save changes
+        </button>
       </div>
-      <div className="profile-body">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div className="profile-avatar">{(profile.name || 'U')[0].toUpperCase()}</div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Clash Display',sans-serif" }}>{displayName}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{session?.user.email || '—'}</div>
+
+      <section aria-label="Account actions" style={{ marginTop: 'var(--s4)' }}>
+        {confirmOut ? (
+          <div className="field-row" role="group" aria-label="Confirm sign out">
+            <button className="btn btn-secondary" onClick={() => setConfirmOut(false)} autoFocus>Cancel</button>
+            <button className="btn btn-danger" onClick={signOut}>Sign out</button>
           </div>
-        </div>
-
-        <div className="section-title">Personal Details</div>
-        <Field label="Name"><input type="text" className="input-field" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Sex"><ToggleGroup options={SEX_OPTIONS} value={sex} onChange={setSex} /></Field>
-        <div className="inline-fields">
-          <Field label="Age"><input type="number" className="input-field" placeholder="25" min={10} max={100} value={age} onChange={(e) => setAge(e.target.value)} /></Field>
-          <Field label="Height (cm)"><input type="number" className="input-field" placeholder="170" value={height} onChange={(e) => setHeight(e.target.value)} /></Field>
-        </div>
-        <Field label="Current Weight (kg)"><input type="number" className="input-field" placeholder="70" step={0.1} value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
-        <Field label="Goal"><ToggleGroup options={GOAL_OPTIONS} value={goalType} onChange={setGoalType} /></Field>
-        <Field label="Target Weight (kg)"><input type="number" className="input-field" placeholder="e.g. 65" step={0.1} value={target} onChange={(e) => setTarget(e.target.value)} /></Field>
-        <Field label="Daily Calorie Goal"><input type="number" className="input-field" placeholder="2000" value={calories} onChange={(e) => setCalories(e.target.value)} /></Field>
-
-        <div className="section-title">Macro Goals (g/day)</div>
-        <div className="inline-fields">
-          <Field label="Protein" color="protein"><input type="number" className="input-field" placeholder="—" min={0} value={gp} onChange={(e) => setGp(e.target.value)} /></Field>
-          <Field label="Carbs" color="carbs"><input type="number" className="input-field" placeholder="—" min={0} value={gc} onChange={(e) => setGc(e.target.value)} /></Field>
-        </div>
-        <div className="inline-fields">
-          <Field label="Fat" color="fat"><input type="number" className="input-field" placeholder="—" min={0} value={gf} onChange={(e) => setGf(e.target.value)} /></Field>
-          <Field label="Fibre" color="fiber"><input type="number" className="input-field" placeholder="—" min={0} value={gfi} onChange={(e) => setGfi(e.target.value)} /></Field>
-        </div>
-
-        {!showRec || !rec ? (
-          <button type="button" className="toggle-btn" style={{ width: '100%', padding: 12, fontSize: 13 }} onClick={openRec}>🤖 Show AI Recommendation</button>
         ) : (
-          <div className="suggestion-card">
-            <div className="suggestion-label">
-              🤖 AI Recommendation <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>based on your stats</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-              <div style={recCell}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Calorie Goal</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Clash Display',sans-serif" }}>{rec.calories}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>kcal/day</div>
-              </div>
-              <div style={recCell}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Target Weight</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent2)', fontFamily: "'Clash Display',sans-serif" }}>{rec.target ? `${rec.target} kg` : '—'}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>kg</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Macro Goals</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
-                {(['protein', 'carbs', 'fat', 'fiber'] as const).map((k) => (
-                  <div style={macroCell} key={k}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: `var(--${k})` }}>{rec.macros[k]}g</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{k === 'fiber' ? 'Fibre' : k[0].toUpperCase() + k.slice(1)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button type="button" className="toggle-btn active" style={{ width: '100%', marginTop: 10, padding: 8, fontSize: 12 }} onClick={applyRec}>Apply Recommendations</button>
-          </div>
+          <button className="btn btn-danger block" onClick={() => setConfirmOut(true)}><SignOut size={20} weight="bold" aria-hidden /> Sign out</button>
         )}
-        <button className="btn-primary" onClick={submit} disabled={save.isPending}>Save Changes</button>
-        <button className="signout-btn" onClick={signOut}>Sign Out</button>
-      </div>
+      </section>
     </Screen>
-  )
-}
-
-function Field({ label, color, children }: { label: string; color?: string; children: React.ReactNode }) {
-  return (
-    <div className="input-group">
-      <label className="input-label" style={color ? { color: `var(--${color})` } : undefined}>{label}</label>
-      {children}
-    </div>
   )
 }

@@ -1,28 +1,38 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from './auth/AuthProvider'
 import { useProfile } from './auth/useProfile'
 import { BottomNav } from './components/BottomNav'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
-import Onboard from './pages/Onboard'
-import Profile from './pages/Profile'
-import Scan from './pages/Scan'
-import Setup from './pages/Setup'
-import Stats from './pages/Stats'
+
+// Home and Auth load with the app; the other screens load on first visit.
+const Onboard = lazy(() => import('./pages/Onboard'))
+const Setup = lazy(() => import('./pages/Setup'))
+const Scan = lazy(() => import('./pages/Scan'))
+const Stats = lazy(() => import('./pages/Stats'))
+const Profile = lazy(() => import('./pages/Profile'))
 
 function Loading() {
-  return <div className="screen active" style={{ alignItems: 'center', justifyContent: 'center' }}><div className="loader-ring" /></div>
+  return (
+    <div className="screen centered" style={{ alignItems: 'center' }} aria-busy="true" aria-label="Loading">
+      <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+    </div>
+  )
 }
 
 function LoadError({ message, retry }: { message: string; retry: () => void }) {
   const { signOut } = useAuth()
   return (
-    <div className="screen active">
-      <div className="auth-wrap">
-        <h2 className="auth-title">Couldn't load your profile</h2>
-        <div className="auth-error">{message}</div>
-        <button className="btn-primary" style={{ width: '100%' }} onClick={retry}>Try again</button>
-        <button className="signout-btn" style={{ width: '100%' }} onClick={signOut}>Sign Out</button>
+    <div className="screen centered">
+      <div className="auth">
+        <div className="auth-head">
+          <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+          <h1>Couldn't load your profile</h1>
+        </div>
+        <div className="alert alert-error" role="alert">{message}</div>
+        <button className="btn btn-primary block" onClick={retry}>Try again</button>
+        <button className="btn btn-danger block" onClick={signOut}>Sign out</button>
       </div>
     </div>
   )
@@ -45,8 +55,10 @@ function RequireProfile() {
   if (profile.data === null && pathname !== '/onboard' && pathname !== '/setup') return <Navigate to="/onboard" replace />
   return (
     <>
-      <Outlet />
-      {profile.data && !['/onboard', '/setup'].includes(pathname) && <BottomNav />}
+      <Suspense fallback={<Loading />}>
+        <Outlet />
+      </Suspense>
+      {profile.data && !['/onboard', '/setup', '/profile'].includes(pathname) && <BottomNav />}
     </>
   )
 }

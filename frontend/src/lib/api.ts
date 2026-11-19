@@ -19,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, init: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   const res = await fetch(`/api/v1${path}`, {
@@ -29,6 +29,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...init,
   })
   if (res.status === 204) return undefined as T
   const payload = await res.json().catch(() => null)
@@ -50,7 +51,8 @@ export const api = {
   saveProfile: (body: ProfileIn) => request<Profile>('PUT', '/profile', body),
   listMeals: (date: string) => request<Meal[]>('GET', `/meals${q({ date })}`),
   addMeal: (body: MealIn) => request<Meal>('POST', '/meals', body),
-  deleteMeal: (id: string) => request<void>('DELETE', `/meals/${encodeURIComponent(id)}`),
+  // keepalive lets a pending (undoable) delete finish even if the page is closing.
+  deleteMeal: (id: string) => request<void>('DELETE', `/meals/${encodeURIComponent(id)}`, undefined, { keepalive: true }),
   mealHistory: (search?: string) => request<PastMeal[]>('GET', `/meals/history${q({ q: search })}`),
   analyze: (body: AnalyzeIn) => request<AnalysisResult>('POST', '/analyze', body),
   statsSummary: (today: string) => request<StatsSummary>('GET', `/stats/summary${q({ today })}`),

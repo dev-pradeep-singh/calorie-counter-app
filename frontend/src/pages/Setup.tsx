@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
+import { ArrowLeft, Target } from '@phosphor-icons/react'
 import { Screen } from '../components/Screen'
-import { GOAL_OPTIONS, SEX_OPTIONS, ToggleGroup } from '../components/ToggleGroup'
+import { Field, NumberField } from '../components/Field'
+import { GOAL_OPTIONS, SEX_OPTIONS, Segmented } from '../components/Segmented'
+import { Recommendation } from '../components/Recommendation'
 import { useToast } from '../components/Toast'
 import { useProfile } from '../auth/useProfile'
 import { useSaveProfile } from '../hooks/data'
@@ -22,7 +25,6 @@ export default function Setup() {
   const [target, setTarget] = useState('')
   const [calories, setCalories] = useState('')
 
-  // Live recommendation, as before: needs age, height and weight.
   const suggestion = useMemo(() => {
     const a = intOrNull(age), h = intOrNull(height), w = floatOrNull(weight)
     if (!a || !h || !w) return null
@@ -32,7 +34,7 @@ export default function Setup() {
     return { range, displayTarget, goal, calories: calcCalorieGoal(w, h, a, sex, goal) }
   }, [age, height, weight, target, sex])
 
-  // The old screen auto-selected the goal toggle whenever the suggestion changed.
+  // The goal follows the recommendation whenever it changes (as on the old screen).
   const [lastGoal, setLastGoal] = useState<GoalType | null>(null)
   if (suggestion && suggestion.goal !== lastGoal) {
     setLastGoal(suggestion.goal)
@@ -45,13 +47,14 @@ export default function Setup() {
     if (!suggestion) return
     setCalories(String(suggestion.calories))
     if (suggestion.displayTarget) setTarget(String(suggestion.displayTarget))
+    toast('Recommendation applied')
   }
 
-  const complete = () => {
+  const complete = () =>
     save.mutate(
       {
         name: name.trim() || 'Friend',
-        goal_calories: intOrNull(calories) || 2000,
+        goal_calories: intOrNull(calories) || suggestion?.calories || 2000,
         age: intOrNull(age),
         height_cm: intOrNull(height),
         weight_kg: floatOrNull(weight),
@@ -61,83 +64,58 @@ export default function Setup() {
       },
       {
         onSuccess: () => navigate('/', { replace: true }),
-        onError: (e) => toast(`❌ Failed to save profile: ${e.message}`),
+        onError: (e) => toast(`Couldn't save your profile: ${e.message}`, { kind: 'error' }),
       },
     )
-  }
 
   return (
-    <Screen id="screen-setup">
-      <div className="setup-header">
-        <div className="setup-step">Almost there</div>
-        <h2>Tell us about<br />yourself</h2>
+    <Screen id="screen-setup" label="Set up your goals">
+      <header className="page-head">
+        <button className="icon-btn" onClick={() => navigate('/onboard')} aria-label="Back"><ArrowLeft size={20} weight="bold" aria-hidden /></button>
+        <div className="spacer" />
+        <div className="progress-dots" aria-label="Step 2 of 2"><span /><span className="on" /></div>
+      </header>
+      <div className="page-intro">
+        <h1>Tell us about you</h1>
+        <p>We'll suggest a daily goal. You can change everything later.</p>
       </div>
-      <div className="setup-body">
-        <div className="input-group">
-          <label className="input-label">Your Name</label>
-          <input type="text" className="input-field" placeholder="e.g. Alex" value={name} onChange={(e) => setName(e.target.value)} />
+
+      <section className="card form-card" aria-label="About you">
+        <Field label="Your name" autoComplete="given-name" placeholder="e.g. Alex" value={name} onChange={setName} />
+        <div className="field">
+          <span className="field-label" id="sex-label">Sex</span>
+          <Segmented label="Sex" options={SEX_OPTIONS} value={sex} onChange={setSex} />
         </div>
-        <div className="input-group">
-          <label className="input-label">Sex</label>
-          <ToggleGroup options={SEX_OPTIONS} value={sex} onChange={setSex} />
+        <div className="field-row">
+          <NumberField label="Age" placeholder="25" min={10} max={100} value={age} onChange={setAge} suffix="yrs" />
+          <NumberField label="Height" placeholder="170" min={100} max={250} value={height} onChange={setHeight} suffix="cm" />
         </div>
-        <div className="inline-fields">
-          <div className="input-group">
-            <label className="input-label">Age</label>
-            <input type="number" className="input-field" placeholder="25" min={10} max={100} value={age} onChange={(e) => setAge(e.target.value)} />
-          </div>
-          <div className="input-group">
-            <label className="input-label">Height (cm)</label>
-            <input type="number" className="input-field" placeholder="170" min={100} max={250} value={height} onChange={(e) => setHeight(e.target.value)} />
-          </div>
+        <div className="field-row">
+          <NumberField label="Weight" decimal placeholder="70" min={30} max={300} value={weight} onChange={setWeight} suffix="kg" />
+          <NumberField label="Target weight" decimal placeholder="65" min={30} max={300} value={target} onChange={setTarget} suffix="kg" />
         </div>
-        <div className="input-group">
-          <label className="input-label">Current Weight (kg)</label>
-          <input type="number" className="input-field" placeholder="70" min={30} max={300} step={0.1} value={weight} onChange={(e) => setWeight(e.target.value)} />
+        <div className="field">
+          <span className="field-label">Goal</span>
+          <Segmented label="Goal" options={GOAL_OPTIONS} value={goalType} onChange={setGoalType} />
         </div>
-        <div className="input-group">
-          <label className="input-label">Your Goal</label>
-          <ToggleGroup options={GOAL_OPTIONS} value={goalType} onChange={setGoalType} />
-        </div>
-        <div className="input-group">
-          <label className="input-label">Target Weight (kg)</label>
-          <input type="number" className="input-field" placeholder="e.g. 65" min={30} max={300} step={0.1} value={target} onChange={(e) => setTarget(e.target.value)} />
-        </div>
-        {suggestion && (
-          <div className="suggestion-card">
-            <div className="suggestion-label">
-              🤖 AI Recommendation <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>based on your stats</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
-              <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Daily Calories</div>
-                <div className="suggestion-value" style={{ fontSize: 22 }}>{suggestion.calories}</div>
-                <div className="suggestion-desc">kcal / day</div>
-              </div>
-              <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Target Weight</div>
-                <div className="suggestion-value" style={{ fontSize: 22 }}>{suggestion.displayTarget || '—'}</div>
-                <div className="suggestion-desc">kg</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)' }}>
-              ⚖️ Ideal weight range:{' '}
-              <span style={{ color: 'var(--accent2)', fontWeight: 600 }}>
-                {suggestion.range ? `${suggestion.range.min} – ${suggestion.range.max} kg` : '—'}
-              </span>
-            </div>
-            <button type="button" className="toggle-btn active" style={{ width: '100%', marginTop: 12, padding: 10, fontSize: 13 }} onClick={apply}>
-              Apply Recommendations
-            </button>
-          </div>
-        )}
-        <div className="input-group">
-          <label className="input-label">Daily Calorie Goal</label>
-          <input type="number" className="input-field" placeholder="2000" min={1000} max={5000} value={calories} onChange={(e) => setCalories(e.target.value)} />
-        </div>
-      </div>
-      <div className="setup-footer">
-        <button className="btn-primary" onClick={complete} disabled={save.isPending}>Start Tracking 🎯</button>
+      </section>
+
+      {suggestion ? (
+        <Recommendation calories={suggestion.calories} target={suggestion.displayTarget} range={suggestion.range} onApply={apply} />
+      ) : (
+        <p className="field-hint" style={{ textAlign: 'center' }}>Add your age, height and weight to get a personalised goal.</p>
+      )}
+
+      <section className="card form-card" aria-label="Daily goal">
+        <NumberField label="Daily calorie goal" placeholder={suggestion ? String(suggestion.calories) : '2000'} min={1000} max={5000}
+          value={calories} onChange={setCalories} suffix="kcal" icon={<Target size={20} />}
+          hint={suggestion && !calories ? 'Leave empty to use the recommendation.' : undefined} />
+      </section>
+
+      <div className="sticky-cta">
+        <button className="btn btn-primary block" onClick={complete} disabled={save.isPending} aria-busy={save.isPending}>
+          {save.isPending && <span className="spinner" aria-hidden />} Start tracking
+        </button>
       </div>
     </Screen>
   )

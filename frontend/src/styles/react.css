@@ -1,7 +1,0 @@
-/* Small additions for the React port. app.css stays a verbatim copy of the old styles. */
-
-/* Nav items are router links (<a>) instead of <button>s. */
-a.nav-item { text-decoration: none; font: inherit; }
-
-/* Swipe-to-delete uses pointer events: keep vertical scrolling, hand horizontal drags to us. */
-.meal-entry { touch-action: pan-y; user-select: none; }

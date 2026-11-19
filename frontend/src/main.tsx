@@ -6,7 +6,11 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ToastProvider } from './components/Toast'
 import App from './App'
 import './styles/app.css'
-import './styles/react.css'
+
+if (import.meta.env.DEV) {
+  const demo = await import('./dev/demo')
+  if (demo.demoRequested()) demo.installDemo()
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },

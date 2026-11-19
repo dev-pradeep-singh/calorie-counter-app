@@ -1,20 +1,28 @@
 import { NavLink } from 'react-router'
-
-const items = [
-  { to: '/', icon: '🏠', label: 'Home' },
-  { to: '/scan', icon: '📸', label: 'Snap' },
-  { to: '/stats', icon: '📊', label: 'Progress' },
-]
+import { Camera, ChartBar, House } from '@phosphor-icons/react'
 
 export function BottomNav() {
   return (
-    <div className="bottom-nav">
-      {items.map((it) => (
-        <NavLink key={it.to} to={it.to} end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <div className="nav-icon">{it.icon}</div>
-          <div className="nav-label">{it.label}</div>
-        </NavLink>
-      ))}
-    </div>
+    <nav className="bottom-nav" aria-label="Main">
+      <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+        {({ isActive }) => (
+          <>
+            <House size={24} weight={isActive ? 'fill' : 'regular'} aria-hidden />
+            Home
+          </>
+        )}
+      </NavLink>
+      <NavLink to="/scan" className="nav-fab" aria-label="Log a meal">
+        <Camera size={28} weight="fill" aria-hidden />
+      </NavLink>
+      <NavLink to="/stats" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+        {({ isActive }) => (
+          <>
+            <ChartBar size={24} weight={isActive ? 'fill' : 'regular'} aria-hidden />
+            Progress
+          </>
+        )}
+      </NavLink>
+    </nav>
   )
 }

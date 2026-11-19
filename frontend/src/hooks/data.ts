@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Meal, type MealIn, type Profile, type ProfileIn } from '../lib/api'
 import { localDate } from '../lib/date'
 import { useAuth } from '../auth/AuthProvider'
+import { useToast } from '../components/Toast'
+import { haptic } from '../lib/haptics'
 
 const useUserId = () => useAuth().session?.user.id
 
@@ -54,27 +56,49 @@ export function useAddMeal() {
   })
 }
 
-/** Deletes by id, removing the row right away and restoring it if the request fails. */
-export function useDeleteMeal() {
+/**
+ * Delete with Undo: the meal disappears at once and a toast offers Undo for 5 s.
+ * The server delete runs when the toast window ends, or immediately if the page is closed.
+ */
+export function useUndoableDelete() {
   const qc = useQueryClient()
   const uid = useUserId()
-  return useMutation({
-    mutationFn: (meal: Meal) => api.deleteMeal(meal.id),
-    onMutate: async (meal) => {
-      const key = keys.meals(uid, meal.date)
-      await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<Meal[]>(key)
-      qc.setQueryData<Meal[]>(key, (old) => (old ?? []).filter((m) => m.id !== meal.id))
-      return { key, previous }
-    },
-    onError: (_e, _meal, ctx) => {
-      if (ctx) qc.setQueryData(ctx.key, ctx.previous)
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['history', uid] })
-      qc.invalidateQueries({ queryKey: ['stats', uid] })
-    },
-  })
+  const toast = useToast()
+  return (meal: Meal) => {
+    const key = keys.meals(uid, meal.date)
+    qc.setQueryData<Meal[]>(key, (old) => (old ?? []).filter((m) => m.id !== meal.id))
+    haptic(12)
+
+    let settled = false
+    const finish = () => {
+      settled = true
+      window.clearTimeout(timer)
+      window.removeEventListener('pagehide', commit)
+    }
+    const commit = () => {
+      if (settled) return
+      finish()
+      api.deleteMeal(meal.id)
+        .then(() => {
+          qc.invalidateQueries({ queryKey: ['history', uid] })
+          qc.invalidateQueries({ queryKey: ['stats', uid] })
+        })
+        .catch(() => {
+          qc.invalidateQueries({ queryKey: ['meals', uid] }) // put the server's truth back
+          toast(`Couldn't delete ${meal.name}`, { kind: 'error' })
+        })
+    }
+    const undo = () => {
+      if (settled) return
+      finish()
+      qc.setQueryData<Meal[]>(key, (old) =>
+        [...(old ?? []), meal].sort((a, b) => b.logged_at.localeCompare(a.logged_at)),
+      )
+    }
+    const timer = window.setTimeout(commit, 5000)
+    window.addEventListener('pagehide', commit)
+    toast(`${meal.name} removed`, { kind: 'info', action: { label: 'Undo', onClick: undo }, duration: 5000 })
+  }
 }
 
 export function useSaveProfile() {

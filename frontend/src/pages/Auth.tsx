@@ -1,33 +1,35 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router'
+import { CheckCircle, Envelope, Eye, EyeSlash, LockSimple, WarningCircle } from '@phosphor-icons/react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { Screen } from '../components/Screen'
+import { Field } from '../components/Field'
+import { Segmented } from '../components/Segmented'
 
 type Mode = 'signin' | 'signup'
 type Msg = { text: string; type: 'error' | 'success' } | null
+
+const MODES = [
+  { value: 'signin', label: 'Sign in' },
+  { value: 'signup', label: 'Create account' },
+] as const
 
 export default function Auth() {
   const { session } = useAuth()
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<Msg>(null)
 
   if (session) return <Navigate to="/" replace />
 
-  const switchMode = (m: Mode) => {
-    setMode(m)
-    setMsg(null)
-  }
-
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password) {
-      setMsg({ text: 'Please enter your email and password.', type: 'error' })
-      return
-    }
+    if (!email.trim() || !password) return setMsg({ text: 'Enter your email and password to continue.', type: 'error' })
+    if (mode === 'signup' && password.length < 6) return setMsg({ text: 'Use at least 6 characters for your password.', type: 'error' })
     setBusy(true)
     setMsg(null)
     const creds = { email: email.trim(), password }
@@ -38,45 +40,46 @@ export default function Auth() {
     setBusy(false)
     if (error) return setMsg({ text: error.message, type: 'error' })
     if (mode === 'signup' && data.user && !data.session) {
-      setMsg({ text: 'Account created! Check your email to confirm.', type: 'success' })
+      setMsg({ text: 'Account created! Check your inbox to confirm your email.', type: 'success' })
     }
-    // On success the auth listener updates the session and the redirect above kicks in.
   }
 
-  const label = mode === 'signin' ? 'Sign In' : 'Create Account'
-
   return (
-    <Screen id="screen-auth">
-      <form className="auth-wrap" onSubmit={submit} noValidate>
-        <div className="logo-mark">
-          <img src="/logo.png" alt="Calzy" />
+    <Screen id="screen-auth" label="Sign in" centered>
+      <div className="auth">
+        <div className="auth-head">
+          <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+          <h1>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h1>
+          <p>Snap a meal. Calzy does the counting.</p>
         </div>
-        <h2 className="auth-title">Welcome to Calzy</h2>
-        <p className="auth-sub">Your AI calorie tracking companion</p>
-        <div className="auth-tabs">
-          <button type="button" className={`auth-tab${mode === 'signin' ? ' active' : ''}`} onClick={() => switchMode('signin')}>
-            Sign In
-          </button>
-          <button type="button" className={`auth-tab${mode === 'signup' ? ' active' : ''}`} onClick={() => switchMode('signup')}>
-            Sign Up
-          </button>
-        </div>
-        {msg && <div className={msg.type === 'error' ? 'auth-error' : 'auth-success'}>{msg.text}</div>}
-        <div className="input-group" style={{ width: '100%' }}>
-          <label className="input-label" htmlFor="auth-email">Email</label>
-          <input id="auth-email" type="email" className="input-field" placeholder="you@example.com" autoComplete="email"
-            value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div className="input-group" style={{ width: '100%' }}>
-          <label className="input-label" htmlFor="auth-password">Password</label>
-          <input id="auth-password" type="password" className="input-field" placeholder="Min. 6 characters"
+
+        <Segmented label="Account" options={MODES} value={mode} onChange={(m) => { setMode(m); setMsg(null) }} />
+
+        <form onSubmit={submit} noValidate>
+          {msg && (
+            <div className={`alert alert-${msg.type}`} role={msg.type === 'error' ? 'alert' : 'status'}>
+              {msg.type === 'error' ? <WarningCircle size={18} weight="fill" aria-hidden /> : <CheckCircle size={18} weight="fill" aria-hidden />}
+              {msg.text}
+            </div>
+          )}
+          <Field label="Email" type="email" autoComplete="email" inputMode="email" placeholder="you@example.com"
+            icon={<Envelope size={20} />} value={email} onChange={setEmail} />
+          <Field label="Password" type={showPw ? 'text' : 'password'} placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
             autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-            value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        <button type="submit" className="btn-primary" disabled={busy} style={{ width: '100%', marginTop: 8 }}>
-          {busy ? '...' : label}
-        </button>
-      </form>
+            icon={<LockSimple size={20} />} value={password} onChange={setPassword}
+            action={
+              <button type="button" className="icon-btn" style={{ border: 'none', background: 'transparent' }}
+                onClick={() => setShowPw((s) => !s)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw}>
+                {showPw ? <EyeSlash size={20} aria-hidden /> : <Eye size={20} aria-hidden />}
+              </button>
+            } />
+          <button type="submit" className="btn btn-primary block" disabled={busy} aria-busy={busy}>
+            {busy ? <span className="spinner" aria-hidden /> : null}
+            {mode === 'signin' ? 'Sign in' : 'Create account'}
+          </button>
+        </form>
+        <p className="auth-foot">Your data is private to your account.</p>
+      </div>
     </Screen>
   )
 }

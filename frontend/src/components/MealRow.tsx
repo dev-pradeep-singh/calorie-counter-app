@@ -1,54 +1,101 @@
-import { useRef, useState, type PointerEvent } from 'react'
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { Trash } from '@phosphor-icons/react'
 import type { Meal } from '../lib/api'
 
-const MAX = 80 // width of the delete zone
-const THRESHOLD = 40
+const OPEN = 88    // revealed width of the delete action
+const SLOP = 8     // px of movement before a drag starts (avoids accidental swipes)
 
-/** Swipe left to delete, as before. Pointer events cover touch and mouse. */
-export function MealRow({ meal, onDelete }: { meal: Meal; onDelete: (m: Meal) => void }) {
-  const [offset, setOffset] = useState(0)
-  const start = useRef<number | null>(null)
-  const time = new Date(meal.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+/**
+ * A logged meal. Swipe left (touch or mouse) or tap the row to reveal Delete; the Delete
+ * button is a real button, so keyboard and screen-reader users get the same action.
+ */
+export function MealRow({ meal, open, onOpenChange, onDelete, index }: {
+  meal: Meal
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDelete: (m: Meal) => void
+  index: number
+}) {
+  const [drag, setDrag] = useState<number | null>(null)
+  const start = useRef<{ x: number; y: number; base: number } | null>(null)
+  const moved = useRef(false)
+  const time = new Date(meal.logged_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const offset = drag ?? (open ? OPEN : 0)
 
   const down = (e: PointerEvent) => {
-    start.current = e.clientX
+    start.current = { x: e.clientX, y: e.clientY, base: open ? OPEN : 0 }
+    moved.current = false
   }
   const move = (e: PointerEvent) => {
-    if (start.current === null) return
-    const diff = start.current - e.clientX
-    setOffset(diff > 0 ? Math.min(diff, MAX) : 0)
+    const s = start.current
+    if (!s) return
+    const dx = s.x - e.clientX
+    if (!moved.current && Math.abs(dx) < SLOP) return
+    if (!moved.current && Math.abs(e.clientY - s.y) > Math.abs(dx)) { start.current = null; return } // vertical scroll wins
+    moved.current = true
+    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    setDrag(Math.max(0, Math.min(OPEN + 24, s.base + dx)))
   }
   const up = () => {
-    if (start.current === null) return
+    if (!start.current) return
     start.current = null
-    if (offset > THRESHOLD) {
-      setOffset(MAX)
-      window.setTimeout(() => onDelete(meal), 600) // brief pause showing the delete zone
-    } else {
-      setOffset(0)
-    }
+    if (drag !== null) onOpenChange(drag > OPEN / 2)
+    setDrag(null)
+  }
+  const click = () => {
+    if (moved.current) return // the gesture already decided
+    onOpenChange(!open)
+  }
+  const key = (e: KeyboardEvent) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') onDelete(meal)
+    if (e.key === 'Escape') onOpenChange(false)
   }
 
   return (
-    <div className="meal-row">
-      <div className="meal-delete-bg">🗑️</div>
-      <div className="meal-entry" style={{ transform: `translateX(-${offset}px)` }}
-        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={up}>
-        <div className="meal-emoji">{meal.emoji || '🍽️'}</div>
-        <div className="meal-info">
-          <div className="meal-name">{meal.name}</div>
-          <div className="meal-macros">
-            <div className="meal-macro"><span style={{ color: 'var(--protein)' }}>{meal.protein}g</span> P</div>
-            <div className="meal-macro"><span style={{ color: 'var(--carbs)' }}>{meal.carbs}g</span> C</div>
-            <div className="meal-macro"><span style={{ color: 'var(--fat)' }}>{meal.fat}g</span> F</div>
-            <div className="meal-macro"><span style={{ color: 'var(--fiber)' }}>{meal.fiber || 0}g</span> Fi</div>
-          </div>
-        </div>
-        <div>
-          <div className="meal-cal">{meal.calories}</div>
-          <div className="meal-time">{time}</div>
-        </div>
+    <li className="meal" style={{ animationDelay: `${Math.min(index, 6) * 40}ms` }}>
+      <div className="meal-actions" aria-hidden={!open}>
+        <button className="meal-delete" onClick={() => onDelete(meal)} tabIndex={open ? 0 : -1} aria-label={`Delete ${meal.name}`}>
+          <Trash size={20} weight="bold" aria-hidden />
+          Delete
+        </button>
       </div>
-    </div>
+      <button
+        className={`meal-body${drag !== null ? ' dragging' : ''}`}
+        style={{ transform: `translateX(-${offset}px)` }}
+        aria-expanded={open}
+        aria-label={`${meal.name}, ${meal.calories} calories at ${time}. ${open ? 'Delete option shown' : 'Show delete option'}`}
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        onClick={click} onKeyDown={key}
+      >
+        <span className="meal-emoji" aria-hidden>{meal.emoji || '🍽️'}</span>
+        <span className="meal-info" aria-hidden>
+          <span className="meal-name">{meal.name}</span>
+          <span className="chips">
+            <span className="chip protein">P {meal.protein}g</span>
+            <span className="chip carbs">C {meal.carbs}g</span>
+            <span className="chip fat">F {meal.fat}g</span>
+            <span className="chip fiber">Fi {meal.fiber || 0}g</span>
+          </span>
+        </span>
+        <span className="meal-kcal" aria-hidden>
+          <span className="v num" style={{ display: 'block' }}>{meal.calories}</span>
+          <span className="t">{time}</span>
+        </span>
+      </button>
+    </li>
+  )
+}
+
+export function MealRowSkeleton() {
+  return (
+    <li className="meal" aria-hidden>
+      <div className="meal-body">
+        <span className="meal-emoji skeleton" />
+        <span className="meal-info" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span className="skeleton" style={{ height: 16, width: '70%' }} />
+          <span className="skeleton" style={{ height: 14, width: '50%' }} />
+        </span>
+      </div>
+    </li>
   )
 }
