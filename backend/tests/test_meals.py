@@ -3,12 +3,12 @@ import uuid
 
 def test_add_rounds_and_returns_id(client, repo):
     r = client.post("/api/v1/meals", json={
-        "name": "Paneer tikka", "calories": 451.6, "protein": 31.4, "carbs": 12.5, "fat": 30.49,
+        "name": "Paneer tikka", "calories": 451.6, "protein": 31.4, "carbs": 10.5, "fat": 30.49,
         "fiber": 2.6, "emoji": "🧀", "date": "2026-11-19",
     })
     assert r.status_code == 201
     body = r.json()
-    assert body["id"] and (body["calories"], body["protein"], body["carbs"], body["fat"], body["fiber"]) == (452, 31, 12, 30, 3)
+    assert body["id"] and (body["calories"], body["protein"], body["carbs"], body["fat"], body["fiber"]) == (452, 31, 11, 30, 3)  # halves round up, like Math.round
     assert repo.meals[0]["calories"] == 452 and isinstance(repo.meals[0]["calories"], int)
 
 

@@ -3,7 +3,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
 
-from backend.schemas import DayTotal, StatsSummary
+from backend.schemas import DayTotal, StatsSummary, round_half_up
 
 
 def summarize(rows: list[dict], goal_calories: int, today: date) -> StatsSummary:
@@ -27,8 +27,8 @@ def summarize(rows: list[dict], goal_calories: int, today: date) -> StatsSummary
     return StatsSummary(
         total_meals=len(rows),
         streak=streak,
-        avg_calories=round(sum(cal_by_day.values()) / days),
-        avg_protein=round(sum(prot_by_day.values()) / days),
+        avg_calories=round_half_up(sum(cal_by_day.values()) / days),
+        avg_protein=round_half_up(sum(prot_by_day.values()) / days),
         days_on_track=sum(1 for c in cal_by_day.values() if c <= goal_calories),
     )
 
@@ -39,4 +39,4 @@ def week_totals(rows: list[dict], end: date) -> list[DayTotal]:
     for r in rows:
         by_day[r["date"]] += r.get("calories") or 0
     dates = [end - timedelta(days=i) for i in range(6, -1, -1)]
-    return [DayTotal(date=d, calories=round(by_day.get(d.isoformat(), 0))) for d in dates]
+    return [DayTotal(date=d, calories=round_half_up(by_day.get(d.isoformat(), 0))) for d in dates]

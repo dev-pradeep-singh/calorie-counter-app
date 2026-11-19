@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from backend.db import Repo, get_repo
-from backend.schemas import Meal, MealIn, PastMeal
+from backend.schemas import Meal, MealIn, PastMeal, round_half_up
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 
@@ -19,11 +19,11 @@ def add_meal(body: MealIn, repo: Repo = Depends(get_repo)):
     row = {
         "date": body.date.isoformat(),
         "name": body.name.strip(),
-        "calories": round(body.calories),
-        "protein": round(body.protein),
-        "carbs": round(body.carbs),
-        "fat": round(body.fat),
-        "fiber": round(body.fiber),
+        "calories": round_half_up(body.calories),
+        "protein": round_half_up(body.protein),
+        "carbs": round_half_up(body.carbs),
+        "fat": round_half_up(body.fat),
+        "fiber": round_half_up(body.fiber),
         "emoji": body.emoji,
         "logged_at": datetime.now(timezone.utc).isoformat(),
     }

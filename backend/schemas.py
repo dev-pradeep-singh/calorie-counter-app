@@ -1,3 +1,4 @@
+import math
 from datetime import date, datetime
 from typing import Literal
 
@@ -6,6 +7,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 Sex = Literal["male", "female"]
 GoalType = Literal["lose", "maintain", "gain"]
 ImageType = Literal["image/jpeg", "image/png", "image/webp", "image/gif"]
+
+def round_half_up(x: float | None) -> int:
+    """Round like JavaScript's Math.round (Python's round() sends 10.5 to 10)."""
+    return math.floor((x or 0) + 0.5)
+
 
 # Vercel caps request bodies at ~4.5 MB; leave room for the JSON around the image.
 MAX_IMAGE_B64_CHARS = 4_000_000
@@ -86,7 +92,7 @@ class Meal(BaseModel):
     @field_validator("calories", "protein", "carbs", "fat", "fiber", mode="before")
     @classmethod
     def round_nulls(cls, v):
-        return round(v or 0)
+        return round_half_up(v)
 
 
 class PastMeal(BaseModel):
@@ -101,7 +107,7 @@ class PastMeal(BaseModel):
     @field_validator("calories", "protein", "carbs", "fat", "fiber", mode="before")
     @classmethod
     def round_nulls(cls, v):
-        return round(v or 0)
+        return round_half_up(v)
 
 
 # ── Analyze ─────────────────────────────────────────────────────────────────
