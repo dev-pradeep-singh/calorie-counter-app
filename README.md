@@ -21,7 +21,9 @@ Calzy fixes this. Take a photo of your plate, and AI figures out the rest in sec
 - 💡 **Smart Hints** — Not sure AI will recognize your home-cooked dish? Add a quick hint like "dal makhani" to help it
 - 📋 **Daily Log** — All your meals are saved and shown on your home screen with a running calorie total
 - 📊 **Weekly Progress** — See your calorie history for the past 7 days, streaks, and averages
-- 🗑️ **Easy Corrections** — Made a mistake? Swipe left on any meal to delete it
+- 🗑️ **Easy Corrections** — Swipe left or tap a meal to delete it, with Undo if you change your mind
+- ⚖️ **Portion Sizes** — Ate half, or seconds? Adjust the portion before adding it
+- 🌙 **Dark Mode** — Follows your phone's light or dark setting
 - ☁️ **Your Data, Everywhere** — Create an account and access your log from any device
 - 💡 **Nutrition Tips** — Every meal comes with a short tip on how to make it healthier
 
@@ -48,38 +50,69 @@ Calzy fixes this. Take a photo of your plate, and AI figures out the rest in sec
 
 ---
 
-## 🛠️ Backend (local dev)
+## 🛠️ For Developers
 
-The FastAPI backend lives in `backend/` (Vercel entry point: `api/index.py`).
+### Architecture
+
+```
+Browser (React SPA, frontend/)
+   │  Supabase Auth only: sign in / sign up / session
+   │  fetch /api/v1/*  with  Authorization: Bearer <Supabase access token>
+   ▼
+FastAPI (Vercel Python function: api/index.py → backend/)
+   ├── verifies the token against Supabase's signing keys (JWKS)
+   ├── reads/writes Supabase (PostgREST) with the user's own token → row-level security applies
+   └── calls Claude for meal analysis (API key stays on the server)
+```
+
+Both run in one Vercel project: `vercel.json` builds `frontend/` into `frontend/dist`, routes `/api/health` and `/api/v1/*` to FastAPI, and sends every other path to the single-page app.
+
+| Path | What |
+|---|---|
+| `backend/` | FastAPI app: `auth.py` (token check), `db.py` (Supabase as the user), `routers/`, `services/` (Claude, stats), `tests/` |
+| `api/index.py` | Vercel entry point (`from backend.main import app`) |
+| `frontend/src/` | React app: `pages/`, `components/`, `hooks/data.ts` (TanStack Query), `lib/api.ts` (typed client), `styles/app.css` (design tokens, light + dark) |
+
+### Environment variables
+
+| Variable | Used by | Notes |
+|---|---|---|
+| `SUPABASE_URL` | backend + frontend build | Public |
+| `SUPABASE_ANON_KEY` | backend + frontend build | Public (protected by RLS). The frontend build fails if either is missing |
+| `ANTHROPIC_API_KEY` | backend | Secret |
+| `ANTHROPIC_MODEL` | backend | Optional, default `claude-sonnet-5` |
+| `SUPABASE_JWT_SECRET` | backend | Only if the Supabase project still signs tokens with the legacy HS256 secret |
+
+Locally, put them in a repo-root `.env` (see `.env.example`); both the backend and Vite read it.
+
+### Run locally
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env   # then fill in SUPABASE_URL, SUPABASE_ANON_KEY, ANTHROPIC_API_KEY
+cp .env.example .env            # fill in the values
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Check it: `curl localhost:8000/api/health` → `{"status":"ok"}`. API docs: http://localhost:8000/api/v1/docs
-
-Every `/api/v1/*` route needs `Authorization: Bearer <Supabase access token>`. The backend verifies the token and calls Supabase with that same token, so row-level security still applies.
-
-## 🖥️ Frontend (local dev)
-
-React + Vite + TypeScript in `frontend/`. It reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` from the same repo-root `.env`, and proxies `/api` to the backend on :8000.
-
 ```bash
-cd frontend
-npm install
-npm run dev        # http://localhost:5173 (start the backend first)
-npm run gen:api    # regenerate src/lib/api-types.ts after changing backend schemas
+cd frontend && npm install
+npm run dev                     # http://localhost:5173, proxies /api to :8000
 ```
 
-Run the backend tests (Supabase and Anthropic are mocked):
+- Health check: `curl localhost:8000/api/health` → `{"status":"ok"}`. API docs: http://localhost:8000/api/v1/docs
+- **Demo mode** (no login or backend needed): http://localhost:5173/?demo — fake session and in-memory data for designing screens. `?demo=new` shows onboarding, `?demo=empty` an empty day, `?nodemo` turns it off. Dev builds only.
+- After changing backend schemas: `npm run gen:api` (in `frontend/`) regenerates the typed API client.
+
+### Tests
 
 ```bash
-pytest backend/tests
+pytest backend/tests            # Supabase and Anthropic are mocked
+cd frontend && npm run build    # typecheck + production build
 ```
+
+### Deploy
+
+Every push to a branch gets a Vercel preview; merging into `master` deploys production. To roll back, use **Promote to Production** on an earlier deployment in Vercel, or revert the merge commit.
 
 ---
 
