@@ -64,7 +64,18 @@ Check it: `curl localhost:8000/api/health` → `{"status":"ok"}`. API docs: http
 
 Every `/api/v1/*` route needs `Authorization: Bearer <Supabase access token>`. The backend verifies the token and calls Supabase with that same token, so row-level security still applies.
 
-Run the tests (Supabase and Anthropic are mocked):
+## 🖥️ Frontend (local dev)
+
+React + Vite + TypeScript in `frontend/`. It reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` from the same repo-root `.env`, and proxies `/api` to the backend on :8000.
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173 (start the backend first)
+npm run gen:api    # regenerate src/lib/api-types.ts after changing backend schemas
+```
+
+Run the backend tests (Supabase and Anthropic are mocked):
 
 ```bash
 pytest backend/tests
