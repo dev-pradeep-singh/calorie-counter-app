@@ -48,6 +48,21 @@ Calzy fixes this. Take a photo of your plate, and AI figures out the rest in sec
 
 ---
 
+## 🛠️ Backend (local dev)
+
+The FastAPI backend lives in `backend/` (Vercel entry point: `api/index.py`).
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8000
+```
+
+Check it: `curl localhost:8000/api/health` → `{"status":"ok"}`
+
+---
+
 ## 📄 License
 
 MIT
