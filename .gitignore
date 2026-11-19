@@ -3,3 +3,12 @@
 .vercel
 /.claude/*
 CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
