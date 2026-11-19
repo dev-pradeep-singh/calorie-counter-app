@@ -44,7 +44,10 @@ export function useAddMeal() {
   return useMutation({
     mutationFn: (meal: Omit<MealIn, 'date'>) => api.addMeal({ ...meal, date: localDate() }),
     onSuccess: (created) => {
-      qc.setQueryData<Meal[]>(keys.meals(uid, created.date), (old) => [created, ...(old ?? [])])
+      // Show the new meal right away, but only on a list we already have: seeding an empty
+      // cache would make Home show just this meal until the next refetch.
+      qc.setQueryData<Meal[]>(keys.meals(uid, created.date), (old) => (old ? [created, ...old] : old))
+      qc.invalidateQueries({ queryKey: ['meals', uid] })
       qc.invalidateQueries({ queryKey: ['history', uid] })
       qc.invalidateQueries({ queryKey: ['stats', uid] })
     },
