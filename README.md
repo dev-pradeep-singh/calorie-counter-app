@@ -82,6 +82,13 @@ Both run in one Vercel project: `vercel.json` builds `frontend/` into `frontend/
 | `ANTHROPIC_API_KEY` | backend | Secret |
 | `ANTHROPIC_MODEL` | backend | Optional, default `claude-sonnet-5` |
 | `SUPABASE_JWT_SECRET` | backend | Only if the Supabase project still signs tokens with the legacy HS256 secret |
+| `DAILY_SCAN_LIMIT` | backend | Optional, default `3`: AI scans per user per UTC day. `0` turns the limit off |
+
+### Database migrations
+
+SQL for the Supabase project lives in `supabase/migrations/`. Run each file once in Supabase → SQL Editor (they are safe to re-run).
+
+- `20261122_scan_usage.sql`: the daily AI scan counter. Until it has run, the API logs a warning and does not enforce the limit.
 
 Locally, put them in a repo-root `.env` (see `.env.example`); both the backend and Vite read it.
 

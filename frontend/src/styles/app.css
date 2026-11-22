@@ -695,3 +695,7 @@ input[type='number']::-webkit-outer-spin-button, input[type='number']::-webkit-i
     scroll-behavior: auto !important;
   }
 }
+
+/* Daily AI scan allowance, under the Analyze button */
+.scan-quota { margin-top: calc(-1 * var(--s2)); text-align: center; font-size: var(--fs-sm); color: var(--text-muted); }
+.scan-quota.is-out { padding: var(--s3) var(--s4); border-radius: var(--r-md); background: color-mix(in srgb, var(--warning) 12%, var(--surface)); color: var(--text); }

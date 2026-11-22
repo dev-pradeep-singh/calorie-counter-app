@@ -7,7 +7,9 @@ import { BackHeader } from '../components/BackHeader'
 import { Field } from '../components/Field'
 import { Segmented } from '../components/Segmented'
 import { useToast } from '../components/Toast'
-import { useAddMeal } from '../hooks/data'
+import { useQueryClient } from '@tanstack/react-query'
+import { keys, useAddMeal, useScanUsage } from '../hooks/data'
+import { useAuth } from '../auth/AuthProvider'
 import { api, ApiError, type AnalysisResult } from '../lib/api'
 import { normalizeImageToJpeg } from '../lib/image'
 import { haptic } from '../lib/haptics'
@@ -26,7 +28,13 @@ export default function Scan() {
   const navigate = useNavigate()
   const toast = useToast()
   const addMeal = useAddMeal()
+  const qc = useQueryClient()
+  const uid = useAuth().session?.user.id
+  const { data: usage } = useScanUsage()
+  const outOfScans = usage?.remaining === 0
+  const resetTime = usage && new Date(usage.resets_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const descId = useId()
+  const quotaId = useId()
 
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -71,6 +79,7 @@ export default function Scan() {
   const analyze = async () => {
     const desc = description.trim()
     if (!desc && !file) return toast('Add a photo or describe your meal first', { kind: 'info' })
+    if (outOfScans) return toast(`You've used today's free AI scans. More at ${resetTime}.`, { kind: 'info' })
     setAnalyzing(true)
     setResult(null)
     try {
@@ -91,12 +100,14 @@ export default function Scan() {
       setResult(res)
       haptic()
     } catch (e) {
+      if (e instanceof ApiError && e.status === 429) return toast(e.message, { kind: 'info' })
       const msg = e instanceof ApiError && e.status === 413 ? 'That photo is too large. Try a smaller one.'
         : e instanceof ApiError && e.status === 422 ? "Couldn't recognise a meal there. Add a short description and try again."
         : 'Analysis failed. Check your connection and try again.'
       toast(msg, { kind: 'error', action: { label: 'Retry', onClick: analyze } })
     } finally {
       setAnalyzing(false)
+      qc.invalidateQueries({ queryKey: keys.usage(uid) })
     }
   }
 
@@ -157,9 +168,17 @@ export default function Scan() {
         {description.length > MAX_DESC * 0.8 && <span className="char-count num">{description.length}/{MAX_DESC}</span>}
       </div>
 
-      <button className="btn btn-primary block" onClick={analyze} disabled={analyzing} aria-busy={analyzing}>
+      <button className="btn btn-primary block" onClick={analyze} disabled={analyzing || outOfScans} aria-busy={analyzing}
+        aria-describedby={usage?.limit != null ? quotaId : undefined}>
         <Sparkle size={20} weight="fill" aria-hidden /> Analyze with AI
       </button>
+      {usage?.limit != null && (
+        <p id={quotaId} className={`scan-quota${outOfScans ? ' is-out' : ''}`} role="status">
+          {outOfScans
+            ? <>You've used today's {usage.limit} free AI scans. More at <span className="num">{resetTime}</span>. You can still quick add past meals on Home.</>
+            : <><span className="num">{usage.remaining}</span> of <span className="num">{usage.limit}</span> free AI scans left today</>}
+        </p>
+      )}
 
       {result && scaled && (
         <section ref={resultRef} className="card result" aria-label="Analysis result" tabIndex={-1}>

@@ -89,3 +89,25 @@ def test_postgrest_errors_mapped(client, repo, code, status):
 
     repo.get_profile = boom
     assert client.get("/api/v1/profile").status_code == status
+
+
+def test_use_scan_calls_rpc_with_limit(settings):
+    repo, rec = make_repo(settings, lambda r: httpx.Response(200, json=2))
+    assert repo.use_scan(3) == 2
+    req = rec.requests[0]
+    assert req.method == "POST" and req.url.path == "/rest/v1/rpc/use_scan"
+    assert json.loads(req.content) == {"p_limit": 3}
+    assert req.headers["authorization"] == "Bearer user-token"
+
+
+def test_use_scan_null_means_limit_reached(settings):
+    repo, _ = make_repo(settings, lambda r: httpx.Response(200, content=b"null"))
+    assert repo.use_scan(3) is None
+
+
+def test_scans_on_reads_own_row(settings):
+    repo, rec = make_repo(settings, lambda r: httpx.Response(200, json=[{"count": 4}]))
+    assert repo.scans_on(date(2026, 11, 22)) == 4
+    params = q(rec.requests[0])
+    assert rec.requests[0].url.path == "/rest/v1/scan_usage"
+    assert params["user_id"] == [f"eq.{USER_ID}"] and params["day"] == ["eq.2026-11-22"]

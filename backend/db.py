@@ -86,6 +86,19 @@ class Repo:
             offset += PAGE_SIZE
 
 
+    # ── scan_usage ──────────────────────────────────────────────────────────
+    def scans_on(self, day: date) -> int:
+        rows = (
+            self.client.table("scan_usage").select("count")
+            .eq("user_id", self.user_id).eq("day", day.isoformat()).limit(1).execute().data
+        )
+        return rows[0]["count"] if rows else 0
+
+    def use_scan(self, limit: int) -> int | None:
+        """One more scan for today, or None if the limit is reached (atomic, in SQL)."""
+        return self.client.rpc("use_scan", {"p_limit": limit}).execute().data
+
+
 def make_client(settings: Settings, token: str, http_client: httpx.Client | None = None) -> SyncPostgrestClient:
     return SyncPostgrestClient(
         settings.rest_url,
