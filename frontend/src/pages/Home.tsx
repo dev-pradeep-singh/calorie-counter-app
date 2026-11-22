@@ -77,7 +77,7 @@ export default function Home() {
           <ul className="meal-list"><MealRowSkeleton /><MealRowSkeleton /></ul>
         ) : list.length === 0 ? (
           <div className="card empty">
-            <img src="/logo.png" alt="" width={72} height={72} />
+            <img src="/logo.png" alt="" width={60} height={60} />
             <h3>Nothing logged yet</h3>
             <p>Snap your first meal of the day and Calzy will do the maths.</p>
             <button className="btn btn-primary btn-sm" onClick={() => navigate('/scan')}><Camera size={18} weight="fill" aria-hidden /> Log a meal</button>

@@ -353,7 +353,7 @@ input[type='number']::-webkit-outer-spin-button, input[type='number']::-webkit-i
   display: grid; place-items: center; box-shadow: var(--shadow-md);
   overflow: hidden;
 }
-.brand-mark img { width: 64px; height: 64px; object-fit: contain; }
+.brand-mark img { width: 56px; height: 56px; object-fit: contain; }
 .auth-head { display: flex; flex-direction: column; align-items: center; gap: var(--s3); text-align: center; }
 .auth-head h1 { font-size: var(--fs-2xl); }
 .auth-head p { color: var(--text-muted); }
@@ -553,7 +553,7 @@ input[type='number']::-webkit-outer-spin-button, input[type='number']::-webkit-i
   display: flex; flex-direction: column; align-items: center; gap: var(--s3);
   padding: var(--s8) var(--s5); text-align: center;
 }
-.empty img { width: 72px; height: 72px; opacity: 0.95; }
+.empty img { width: 60px; height: 60px; opacity: 0.95; }
 .empty h3 { font-size: var(--fs-lg); }
 .empty p { color: var(--text-muted); font-size: var(--fs-sm); max-width: 28ch; }
 
@@ -603,7 +603,7 @@ input[type='number']::-webkit-outer-spin-button, input[type='number']::-webkit-i
   box-shadow: 0 0 0 0 var(--brand-ring);
   animation: pulse 1.6s var(--ease-out) infinite;
 }
-.analyzing .pulse img { width: 84px; height: 84px; object-fit: contain; }
+.analyzing .pulse img { width: 76px; height: 76px; object-fit: contain; }
 .analyzing h2 { font-size: var(--fs-xl); }
 .analyzing p { opacity: 0.85; min-height: 1.5em; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--brand-ring); } 70% { box-shadow: 0 0 0 28px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }

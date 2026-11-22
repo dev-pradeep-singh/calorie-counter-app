@@ -11,7 +11,7 @@ export default function Onboard() {
 
   return (
     <Screen id="screen-onboard" label="Welcome">
-      <div className="brand-mark"><img src="/logo.png" alt="Calzy" width={64} height={64} /></div>
+      <div className="brand-mark"><img src="/logo.png" alt="Calzy" width={56} height={56} /></div>
       <div className="onboard-hero">
         <h1>Calorie tracking,<br /><em>without the counting.</em></h1>
         <p>Snap a photo or describe your meal. Calzy estimates calories and macros in seconds.</p>

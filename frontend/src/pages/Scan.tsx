@@ -200,7 +200,7 @@ export default function Scan() {
 
       {analyzing && createPortal(
         <div className="analyzing" role="alertdialog" aria-modal="true" aria-label="Analyzing your meal">
-          <div className="pulse"><img src="/logo.png" alt="" width={84} height={84} /></div>
+          <div className="pulse"><img src="/logo.png" alt="" width={76} height={76} /></div>
           <h2>Analyzing your meal</h2>
           <p aria-live="polite">{STEPS[step]}</p>
         </div>,
