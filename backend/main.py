@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
-from backend.routers import analyze, meals, profile, stats
+from backend.routers import analyze, meals, profile, stats, usage
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("calzy")
@@ -23,7 +23,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-for r in (profile.router, meals.router, analyze.router, stats.router):
+for r in (profile.router, meals.router, analyze.router, stats.router, usage.router):
     app.include_router(r, prefix="/api/v1")
 
 

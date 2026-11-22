@@ -12,6 +12,7 @@ export type AnalyzeIn = S['AnalyzeIn']
 export type AnalysisResult = S['AnalysisResult']
 export type StatsSummary = S['StatsSummary']
 export type WeekStats = S['WeekStats']
+export type ScanUsage = S['ScanUsage']
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -55,6 +56,7 @@ export const api = {
   deleteMeal: (id: string) => request<void>('DELETE', `/meals/${encodeURIComponent(id)}`, undefined, { keepalive: true }),
   mealHistory: (search?: string) => request<PastMeal[]>('GET', `/meals/history${q({ q: search })}`),
   analyze: (body: AnalyzeIn) => request<AnalysisResult>('POST', '/analyze', body),
+  usage: () => request<ScanUsage>('GET', '/usage'),
   statsSummary: (today: string) => request<StatsSummary>('GET', `/stats/summary${q({ today })}`),
   statsWeek: (end: string) => request<WeekStats>('GET', `/stats/week${q({ end })}`),
 }

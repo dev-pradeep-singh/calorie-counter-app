@@ -33,6 +33,9 @@ const history = [
   { name: 'Boiled egg', calories: 78, protein: 6, carbs: 1, fat: 5, fiber: 0, emoji: '🥚' },
   { name: 'Salmon with quinoa', calories: 560, protein: 41, carbs: 44, fat: 22, fiber: 6, emoji: '🐟' },
 ]
+const SCAN_LIMIT = 3
+let scansUsed = 1
+const resetsAt = () => { const d = new Date(); d.setUTCHours(24, 0, 0, 0); return d.toISOString() }
 const week = [1820, 2140, 0, 1960, 1710, 2380]
 
 const json = (body: unknown, status = 200) =>
@@ -56,7 +59,10 @@ async function handle(method: string, url: URL, body: any): Promise<Response> {
     return json(null, 204)
   }
   if (p === '/meals/history') return json(history)
+  if (p === '/usage') return json({ used: scansUsed, limit: SCAN_LIMIT, remaining: Math.max(0, SCAN_LIMIT - scansUsed), resets_at: resetsAt() })
   if (p === '/analyze') {
+    if (scansUsed >= SCAN_LIMIT) return json({ detail: `You've used all ${SCAN_LIMIT} AI scans for today. They reset at midnight UTC.` }, 429)
+    scansUsed++
     await wait(1800)
     return json({ name: 'Chicken tikka with naan', calories: 640, protein: 42, carbs: 58, fat: 24, fiber: 4, emoji: '🍗',
       tip: 'Swap the naan for a small portion of brown rice and add a side salad to boost fibre and keep you fuller for longer.' })

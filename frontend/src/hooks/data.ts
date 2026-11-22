@@ -14,6 +14,7 @@ export const keys = {
   history: (uid?: string) => ['history', uid] as const,
   summary: (uid: string | undefined, today: string) => ['stats', uid, 'summary', today] as const,
   week: (uid: string | undefined, end: string) => ['stats', uid, 'week', end] as const,
+  usage: (uid?: string) => ['usage', uid] as const,
 }
 
 export function useTodayMeals() {
@@ -37,6 +38,12 @@ export function useStatsWeek() {
   const uid = useUserId()
   const end = localDate()
   return useQuery({ queryKey: keys.week(uid, end), queryFn: () => api.statsWeek(end), enabled: !!uid })
+}
+
+/** Today's AI scans and the daily limit (limit is null when there is none). */
+export function useScanUsage() {
+  const uid = useUserId()
+  return useQuery({ queryKey: keys.usage(uid), queryFn: () => api.usage(), enabled: !!uid })
 }
 
 /** Adds a meal to today's log (the client's local date). */

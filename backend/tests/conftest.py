@@ -19,6 +19,21 @@ class FakeRepo:
     def __init__(self):
         self.profile: dict | None = None
         self.meals: list[dict] = []
+        self.scans = 0
+        self.scan_error = None  # set to a postgrest APIError to simulate Supabase failures
+
+    def scans_on(self, day):
+        if self.scan_error:
+            raise self.scan_error
+        return self.scans
+
+    def use_scan(self, limit):
+        if self.scan_error:
+            raise self.scan_error
+        if self.scans >= limit:
+            return None
+        self.scans += 1
+        return self.scans
 
     def get_profile(self):
         return self.profile

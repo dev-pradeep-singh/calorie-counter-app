@@ -61,7 +61,10 @@ def build_content(req: AnalyzeIn) -> list[dict]:
 
 
 def analyze(req: AnalyzeIn, client: anthropic.Anthropic, model: str) -> AnalysisResult:
-    content = build_content(req)
+    return analyze_content(build_content(req), client, model)
+
+
+def analyze_content(content: list[dict], client: anthropic.Anthropic, model: str) -> AnalysisResult:
     try:
         response = client.messages.parse(
             model=model,

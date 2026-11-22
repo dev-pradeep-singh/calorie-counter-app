@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5"
+    # AI scans per user per UTC day. 0 turns the limit off.
+    daily_scan_limit: int = 3
 
     @property
     def jwks_url(self) -> str:

@@ -143,6 +143,13 @@ class AnalysisResult(BaseModel):
     tip: str
 
 
+class ScanUsage(BaseModel):
+    used: int
+    limit: int | None  # null: no limit
+    remaining: int | None
+    resets_at: datetime
+
+
 # ── Stats ───────────────────────────────────────────────────────────────────
 class StatsSummary(BaseModel):
     total_meals: int
