@@ -16,7 +16,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 function Loading() {
   return (
     <div className="screen centered" style={{ alignItems: 'center' }} aria-busy="true" aria-label="Loading">
-      <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+      <div className="brand-mark"><img src="/logo.png" alt="" width={56} height={56} /></div>
     </div>
   )
 }
@@ -27,7 +27,7 @@ function LoadError({ message, retry }: { message: string; retry: () => void }) {
     <div className="screen centered">
       <div className="auth">
         <div className="auth-head">
-          <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+          <div className="brand-mark"><img src="/logo.png" alt="" width={56} height={56} /></div>
           <h1>Couldn't load your profile</h1>
         </div>
         <div className="alert alert-error" role="alert">{message}</div>

@@ -48,7 +48,7 @@ export default function Auth() {
     <Screen id="screen-auth" label="Sign in" centered>
       <div className="auth">
         <div className="auth-head">
-          <div className="brand-mark"><img src="/logo.png" alt="" width={64} height={64} /></div>
+          <div className="brand-mark"><img src="/logo.png" alt="" width={56} height={56} /></div>
           <h1>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h1>
           <p>Snap a meal. Calzy does the counting.</p>
         </div>
